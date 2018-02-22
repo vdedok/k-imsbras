@@ -1,52 +1,196 @@
-\documentclass[10pt]{article}
+\documentclass[10pt,a4paper]{article}
+
 \usepackage[cp1251]{inputenc}
 \usepackage[russian]{babel}
-\usepackage{amsmath}
-\usepackage{amsfonts}
+\usepackage{amssymb,amsmath,floatflt}
 \usepackage[dvips]{graphicx}
 
-\sloppy
+%%%%%%%%%%%%%%%%%%%%%%
 
-\headheight=0mm       %размер места отводимого под колонтитул
-\oddsidemargin=10mm   %левое поле
-\topmargin=-10.5mm    %верхнее поле
-\textheight=220mm     %высота текста
-\textwidth=125mm      %ширина текста
+\textwidth=160mm
+\textheight=240mm
+\topmargin=-1.cm
+\oddsidemargin=0.0cm
+
+%%%%%%%%%%%%%%%%%%%%%%
 
 \begin{document}
 
-%\everypar{\special{src: \the\inputlineno \jobname.tex}}
-%\everymath{\special{src: \the\inputlineno \jobname.tex}}
+УДК 517.958 \\
 
-УДК 517.958
+Полное название статьи \\[2mm]
 
-\begin{center}
-{\Large \sffamily НАЗВАНИЕ РАБОТЫ} \footnote{Работа выполнена при финансовой поддержке Российского фонда фундаментальных исследований (код проекта 17–01–00120–a).}\\[3mm]
+В.~А.~Дедок, А.~Л.~Карчевский \\[2mm]
 
-{\large {\bf Авторы}}\\[3mm]
-\end{center}
+Дедок Василий Александрович \\
+Институт математики им. С.Л. Соболева СО РАН, пр-т Акад. Коптюга, 4, г.~Новосибирск, 630090 Россия \\
+e-mail: vasily.a.dedok@gmail.com,~dedok@math.nsc.ru \\[2mm]
 
-\textbf{Аннотация. } Аннотация
+Карчевский Андрей Леонидович \\
+Институт математики им. С.Л. Соболева СО РАН, пр-т Акад. Коптюга, 4, г.~Новосибирск, 630090 Россия \\
+e-mail: karchevs@math.nsc.ru\\[2mm]
 
-\textbf{Ключевые слова:} обратные задачи, численные методы.
+Здесь будет аннотация! \\[2mm]
+
+ключевые слова: бесфазовая обратная задача, уравнения Максвелла, диэлектрическая проницаемость, функционал невязки\\[2mm]
+
+Работа выполнена при финансовой поддержке Российского фонда фундаментальных исследований (код проекта 17–01–00120–a) \\[2mm]
+
+Dedok~V.~A., Karchevsky~A.~L. \\[2mm]
+
+Title \\[2mm]
+
+The paper presents ...  \\[2mm]
+
+Key words: phaseless inverse problem, Maxwell equations, permittivity, resudual functional \\[2mm]
+
+Dedok Vasily Aleksandrovich \\
+Sobolev Institute of Mathematics SB RAS, pr. Acad. Koptyug, 4, Novosibirsk, 630090 Russia \\
+E-mail: vasily.a.dedok@gmail.com, dedok@math.nsc.ru  \\[2mm]
+
+Karchevsky Andrey Leonidovich \\
+Sobolev Institute of Mathematics SB RAS, pr. Acad. Koptyug, 4, Novosibirsk, 630090 Russia \\
+E-mail: karchevs@math.nsc.ru \\[2mm]
+
+\newpage
+
+\section*{Введение}
+
+
+В работе представлен численный алгоритм по определению диэлектрической проницаемости внутри области по модулю функции напряжения рассеянного электрического поля, измеренного на границе этой области. 
+Это так называемая безфазовая обратная задача. В такой постановке используется только модуль комплекснозначной функции, отвечающей рассеянному на неоднородностях среды физическому полю, в данном случае электрическому. 
+Задачи подобного типа возникают из физических экспериментов, проводящихся при высоких уровнях энергии (высоких частотах) для определения свойств среды, имеющей мелкие включения типа наноструктур. 
+При таких физических условиях фазовая составляющая поля не может быть измерена, можно говорить только об измерении модуля рассеянного поля. 
+
+Впервые подобная постановка бесфазной обратной задачи по определению потенциала в уравнении Шредингера по модулю рассеянного поля был а поставлена в работе Шадана и Сабатье \cite{ShS}, так же о практической важности решения бесфазных обратных задач было указано Р. Ньютоном \cite{New}. Первые результаты по исследованию единственности восстановления фазы по модулю амплитуды рассеяния были получены в работах М.В. Клибанова \cite{Kli1}-\cite{Kli9}.
+
+Различные конструктивные методы построения решения безфазных обратных задач были предложены  в работах М.В. Клибанова, В.Г. Романова \cite{KR1}-\cite{KR3} и Р.Г. Новикова \cite{N1,N2} для уравнения Шредингера,  М.В. Клибанова и В.Г. Романова \cite{KR4}-\cite{KR7}  для обобщенного уравнения Гельмгольца, в работах В.Г. Романова для уравнений Максвелла \cite{R1,R2}. 
+
+Необходимо отметить, что в работах \cite{K+1}-\cite{K+6} по численому решению бесфазных обратных задач применяется и развивается предложенный М.В. Клибановым глобальносходящийся метод (см., например, \cite{K+1}, \cite{BK1}-\cite{BK3}). Данный метод показал хорошую работу при решении различных задач. 
+
+В данной работе мы применили оптимизационный метод решения обратной задачи.  
+
+
+\section{Постановка задачи}
+
+Рассмотрим стационарную систему уравнений Максвелла
+\begin{equation}
+{\rm rot} H= -i\omega\varepsilon(x)E+\tilde{j}, \ \ \ \ {\rm rot} E = i\omega\mu_{0}H, \label{901}
+\end{equation}
+в которой $\mu_{0}$ -- магнитная проницаемость, $\varepsilon(x)$ -- диэлектрическая проницаемость, $\tilde{j}=j^{0}\delta(x-y)$ -- точечный диполь, локализованный в точке $y$, и $j^{0}$ -- единичный вектор, определяющий направление диполя. Вектора $E$ и $H$ характеризуют напряженности электрического и магнитного полей соответственно. Здесь точка $y$ и частота $\omega$ являются параметрами задачи.
+
+Относительно диэлектрической проницаемости предполагается, что она представляет собой гладкую положительную функцию всюду в $\mathbb{R}^{3}$, совпадающей с некоторой заданной положительной постоянной $\varepsilon_{0}$ вне некоторой компактной области $\Omega$, а носитель разности $\varepsilon(x)-\varepsilon_{0}$ строго лежит внутри $\Omega$, т.е. предполагаем, что существует некоторая окрестность границы $\partial\Omega$ области $\Omega$, где $\varepsilon(x)=\varepsilon_{0}$. 
+
+Через $E^{sc}$ будем обозначать напряжение рассеянного электрического поля.\medskip
+
+{\bf Задача}: Пусть во всех точках границы $\partial\Omega$ области $\Omega$ задана приведенная величина модуля напряжения электрического поля $\mathcal{E}(x,\omega,y)=\omega^{-2}|E^{sc}(x,\omega,y)|$, $(x,y)\in\partial\Omega\times\partial\Omega$, $\omega\ge\omega_{0}>0$. Необходимо определить $\varepsilon(x)$ внутри области $\Omega$. 
 
 
 
-\begin{center}
-{\Large \sffamily SUBJECT}\\[3mm]
+\section{Вычисление $\mathcal{E}(x,\omega,y)$ при известной функции $\varepsilon(x)$}
 
-{\large {\bf Authors}}\\[3mm]
-\end{center}
+В работах \cite{R1,R2} получена асимптотика 
+\begin{equation}
+\mathcal{E}=(A-B)^{2}+2AB\sin^{2}\!\bigl(\omega(\tau-\tau_{0})\bigr)+O(1/\omega), \label{001}
+\end{equation}
+$$
+A=\frac{1}{2\tau}\,\bigl|a-\nu(a\!\cdot\!\nu)\bigl|, \ \ \ \ \ B=\frac{\mu_{0}n_{0}}{4\pi\tau_{0}}\,\bigl|j^{0}-\nu^{0}(j^{0}\!\cdot\!\nu^{0})\bigr|.
+$$
+Здесь обозначено
+$$
+n(x)=\sqrt{\mu_{0}\varepsilon(x)}, \ \ \ n_{0}=\sqrt{\mu_{0}\varepsilon_{0}}, \ \ \ \nu(x,y)=\frac{\nabla\tau(x,y)}{n(x)},\ \ \ \nu^{0}(x,y)=\frac{x-y}{|x-y|}, \ \ \ \tau^{0}=n_{0}|x-y|,
+$$
+$\tau(x,y)$ и $\tau_{0}(x,y)$ -- времена пробега электромагнитной волны в неоднородной и однородной среде, вектор-функция $a=a(x,y)$ является решением дифференциального уравнения
+\begin{equation}
+4\bigl(\nabla\tau\cdot\nabla\bigr)a+\bigl(-6n^{2}(x)+\Delta\tau^{2}\bigr)a+2\tau\bigl(\nabla\tau\cdot a\bigl)\nabla\ln\epsilon=0 \label{003}
+\end{equation}
+с краевыми условиями $a|_{s=0}=(\mu_{0}n_{0}/2\pi)j^{0}$.
 
-\textbf{Abstract. } Abstract
+При получении соотношения \eqref{001} предполагалось, что Риманова метрика $d\tau=n(x)|dx|$ является простой, т.е. считалось, что любые две точки $x$, $y$ из $\mathbb{R}^3$ могут быть соединены единственной геодезической $\Gamma(x,y)$.
 
-\textbf{Keywords:} inverse problem, numerical methods.
+Таким образом, чтобы вычислить $\mathcal{M}(x,\omega,y)$ необходимо уметь вычислять величины $\tau(x,y)$, $\Delta\tau(x,y)$ и вектора $\nabla\tau(x,y)$, $a(x,y)$.
+
+Для вычисления величины $\tau(x,y)$ и вектора $\nabla\tau(x,y)$ существует хорошо известный путь (см., например, \cite{BV}) -- это решение уравнения эйканала
+
+
+\begin{equation}
+|\nabla\tau|^{2}=n^{2}, \label{004}
+\end{equation}
+которое сводится к решению следующей системы уравнений:
+\begin{eqnarray}
+\dot{x} &=& p/n^{2}, \ \ \  x|_{s=0}=y, \label{005}\\[2mm]
+\dot{p} &=& \nabla\ln n, \ \ \ p|_{s=0}=n(y)\eta^{0},\label{006}
+\end{eqnarray}
+где введены стандартные обозначения $p_{k}=\partial\tau/\partial x_{k}$ ($k=\overline{1,3}$), точка означает дифференцирование по паратметру $s$, и $\eta^{0}$ -- единичный вектор, указывающий направление входа луча в область $\Omega$. Если считать, что имеет место начальное условие $\tau|_{s=0}=0$, то имеем равенство $s=\tau(x,y)$.
+
+Введем обозначение $q_{km}=\partial p_{k}/\partial x_{m}$ ($k,m=\overline{1,3}$), очевидно, имеет место равенство
+\begin{equation}
+q_{km}=q_{mk}. \label{007}
+\end{equation}
+
+Из уравнения \eqref{004} следует 
+\begin{equation}
+\sum_{j=1}^{3}p_{j}\frac{\partial p_{k}}{\partial x_{j}}=n\,\frac{\partial n}{\partial x_{k}}. \label{008}
+\end{equation}
+Дифференцируем равенство \eqref{008} по $x_{m}$, получим
+$$
+\sum_{j=1}^{3}p_{j}\frac{\partial^{2} p_{k}}{\partial x_{j}\partial x_{m}}+\sum_{j=1}^{3}\frac{\partial p_{j}}{\partial x_{m}}\,\frac{\partial p_{k}}{\partial x_{j}} 
+=n\,\frac{\partial^{2} n}{\partial x_{k}\partial x_{m}}+\frac{\partial n}{\partial x_{k}}\,\frac{\partial n}{\partial x_{m}},
+$$
+откуда, учитывая введенные обозначения, равенства \eqref{007} и определение дифференцирования по параметру $s$, получаем
+\begin{equation}
+\dot{q}_{km}+\frac{1}{n^{2}}\sum_{j=1}^{3}q_{kj}q_{jm}=\frac{1}{2n^{2}}\bigl(n^{2}\bigr)_{x_{k}x_{m}}. \label{009}
+\end{equation}
+
+Краевым условием для нахождения $q_{km}$ ($k,m=\overline{1,3}$) может служить соотношение
+\begin{equation}
+q_{km}|_{x\to y} \sim n_{0}\left(\delta_{km}-\frac{x_{k}-y_{k}}{|x-y|}\,\frac{x_{m}-y_{m}}{|x-y|}\right)\frac{1}{|x-y|}  \label{010}
+\end{equation}
+($\delta_{km}$ -- дельта Кронекера), которое следует из предположения, что существует некоторая окрестность границы $\partial\Omega$, где $\tau(x,y) \sim n_{0}|x-y|$.
+
+Введем матрицы $Q$, $N$ и $\mathcal{V}$ с элементами $Q_{km}=q_{km}$, $N_{km}=\frac{1}{2}n^{-2}\bigl(n^{2}\bigr)_{x_{k}x_{m}}$ и $\mathcal{V}_{km}=\eta_{k}^{0}\eta_{m}^{0}$.
+Данные матрицы являются симметричными.
+
+Уравнения \eqref{009} и начальные условия \eqref{010} можно записать в компактной форме:
+\begin{equation}
+\dot{Q}+\frac{1}{n^{2}}Q^{2}=N, \ \ \ \ \ Q|_{x\to y} \sim \frac{n_{0}}{|x-y|}\bigl(E-\mathcal{V}\bigr).  \label{011}
+\end{equation}
+
+Учитывая введенные обозначения, решения уравнений \eqref{005}-\eqref{006}, определение дифференцирования по параметру $s$, равенства $\nabla\ln\varepsilon=\nabla\ln n^{2}$ и $\Delta\tau^{2}=2|\nabla\tau|^{2}+2\tau\Delta\tau=2n^{2}+2\tau\Delta\tau$, можем переписать дифференциальное уравнение \eqref{003} в следующем виде:
+\begin{equation}
+4n^{2}\,\dot{a}+\bigl(-4n^{2}+2\tau\Delta\tau\bigr)a+2\tau\bigl(p\cdot a\bigl)\nabla\ln n^{2}=0. \label{003a}
+\end{equation}
+Нетрудно видеть, что $\Delta\tau={\rm tr\,}Q$.
+
+Объединим соотношения \eqref{005}, \eqref{006}, \eqref{011}, \eqref{003a} в одну систему уравнений. Однако краевое условие в \eqref{011} является неудобным для реализации какого-либо численного метода решения. 
+Воспользуемся тем, что в окрестности границы $\partial\Omega$ величина $n(x)$ постоянная, $n(x)=n_{0}$. Найдем решение объединенной системы для некоторого $s=s_{0}$. 
+
+Прежде всего, легко показать, что $\mathcal{V}^{2}=\mathcal{V}$. Поскольку в окрестности границы $\partial\Omega$ матрица $N=0$, тогда матрица $Q$ есть решение матричного уравнения $\dot{Q}+n^{-2}_{0}Q^{2}=0$ и 
+$Q=\bigl(n_{0}^{2}/s\bigr)\!\bigl(E-\mathcal{V}\bigr)$, следовательно, $Q|_{s=s_{0}}=\bigl(n_{0}^{2}/s_{0}\bigr)\!\bigl(E-\mathcal{V}\bigr)$.
+
+Из \eqref{006} следует, что $p|_{s=s_{0}}=n_{0}\eta^{0}$. Отсюда и из \eqref{005} получаем $x|_{s=s_{0}}=y+(s_{0}/n_{0})\eta^{0}$. 
+
+Для матрицы $\bigl(n_{0}^{2}/s\bigr)\!\bigl(E-\mathcal{V}\bigr)$ верно равенство ${\rm tr\,}Q=2n^{2}_{0}/s$, следовательно, для некоторой окрестности границы $\partial\Omega$ второй член равенства \eqref{003a} равен нулю, третий член этого равенства равен нулю в силу постоянства $n(x)$. Следовательно, вектор-функция $a$ удовлетворяет дифференциальному уравнению $\dot{a}=0$, отсюда и краевого условия из \eqref{003} следует $a|_{s=s_{0}}=(\mu_{0}n_{0}/2\pi)j^{0}$.
+
+Вышеприведенные рассуждения позволяют написать объединённую систему уравнений в удобном виде для численного решения
+\begin{eqnarray}
+\dot{x} &=& p/n^{2}, \ \ \ \ \  x|_{s=s_{0}}=y+(s_{0}/n_{0})\eta^{0}, \label{016} \\[2mm]
+\dot{p} &=& \nabla\ln n, \ \ \ \ \ p|_{s=s_{0}}=n_{0}\eta^{0}, \label{017}\\[2mm]
+\dot{Q} &=& -\frac{1}{n^{2}}Q^{2}+N, \ \ \ \ \ Q|_{s=s_{0}}=\frac{n_{0}^{2}}{s_{0}}\bigl(E-\mathcal{V}\bigr), \label{018} \\[2mm]
+\dot{a} &=& \left(1-\frac{s\!\cdot\!{\rm tr\,}Q}{2n^{2}}\right)a-s\bigl(p\cdot a\bigl)\frac{\nabla\ln n^{2}}{2n^{2}}, \ \ \ \ \  a|_{s=s_{0}}=\frac{\mu_{0}n_{0}}{2\pi}j^{0}. \label{019}
+\end{eqnarray}
+
+Таким образом, решая систему \eqref{016}-\eqref{019} для некоторого известного $n(x)$, для каждой точки $y$ и направления $\eta^{0}$ в ней, для каждого направления диполя $j^{0}$ можно вычислить точку $x$ на $\partial\Omega$, времена пробега $\tau(x,y)$ между точками $y$ и $x$ и вектор-функцию $a(x,y)$. Зная эти значения, можно вычислить значение приведенного модуля электромагнитного поля $\mathcal{M}(x,\omega,y)$ (см. \eqref{001}).
+ 
+Ниже для численного решения системы \eqref{016}-\eqref{019} использовался метод Рунге-Кутта четвертого порядка, для тестирования данного решения был реализован метод Адамса 5-ого и 13-ого порядков по схеме предиктор-корректор (см., например, \cite{Bah,Ort,Hol}). 
+
+
 
 \section{Решение обратной задачи}
 
 \subsection{Формулировка обратной задачи}
 
-В работе \cite{Romanov_2017} была рассмотрена следующая обратная задача. Предположим, что во всех точках границы $S$ области $\Omega$ задан модуль $E^{sc}(x,\omega,y)$ как функция точки $x\in S$ и параметров $y$, $\omega$ для всех $y\in S$ и частот $\omega$, начиная с некоторой фиксированной частоты $\omega_0>0$, т.е. задана функция 
+В работе \cite{R1} была рассмотрена следующая обратная задача. Предположим, что во всех точках границы $S$ области $\Omega$ задан модуль $E^{sc}(x,\omega,y)$ как функция точки $x\in S$ и параметров $y$, $\omega$ для всех $y\in S$ и частот $\omega$, начиная с некоторой фиксированной частоты $\omega_0>0$, т.е. задана функция 
 \begin{equation}
 f_1(x,\omega,y)=\left|E^{sc}(x,\omega,y)\right|, \quad (x,y)\in S\times S, \quad \omega \geq \omega_0>0.
 \end{equation}
@@ -65,7 +209,7 @@ f_1(x,\omega,y)=\left|E^{sc}(x,\omega,y)\right|, \quad (x,y)\in S\times S, \quad
 |\nabla_x\tau(x,y)|^2 = n^2(x), \quad \tau(x,y)\sim n(y)|x-y| \quad \text{при} \quad x \rightarrow y.
 \end{equation}
 
-Как было показано в \cite{Romanov_2017} асимптотика функции $E^{sc}$ при $\omega \rightarrow \infty$ имеет следующую асимптотику:
+Как было показано в \cite{R1} асимптотика функции $E^{sc}$ при $\omega \rightarrow \infty$ имеет следующую асимптотику:
 
 \begin{eqnarray}
 \frac{1}{\omega^2}f^2_1(x,\omega,y)=\frac{1}{\omega^2}\left|E^{sc}(x,\omega,y)\right|^2= \nonumber\\
@@ -102,7 +246,7 @@ f_1(x,\omega,y)=\left|E^{sc}(x,\omega,y)\right|, \quad (x,y)\in S\times S, \quad
 
 Без потери общности можно считать, что область $\Omega$ представляет собой куб со стороной $l$, а расстояние от его границы до границы носителя больше некоторой константы$l_0>0$. Причем, при необходимости эту константу можно сделать сколь угодно большой за счет увеличения размеров куба.
 
-Рассмотрим обратную задачу 1 из \cite{Romanov_2017}.
+Рассмотрим обратную задачу 1 из \cite{R1}.
 
 \textbf{Задача 1.} Предположим, что во всех точках границы $S$ области $\Omega$ задан модуль $E^{sc}(x,\omega,y)$ как функция точки $x$ и параметров $y$, $\omega$ для всех $y\in S$ и частот $\omega$, начиная с некоторой фиксированной частоты $\omega_0>0$, т.е. задана функция
 \begin{equation}
@@ -114,43 +258,198 @@ f_1(x,\omega,y)=\left|E^{sc}(x,\omega,y)\right|, \quad (x,y)\in S\times S, \quad
 
 \subsection{Свойства функционала невязки}
 
-\begin{thebibliography}{200}
-%1
-\bibitem{Romanov_2017}
-\emph{Романов В.Г.} Задача об определении коэффициента диэлектрической проницаемости по модулю рассеянного электромагнитного поля // Сиб. мат. журн. 2017. Т. 58. \textnumero 4, C.
-916–-924.
-
-\end{thebibliography}
 
 
-\bigskip
-\noindent \textbf{Информация об авторах}
 
-Дедок Василий Александрович\\
-Институт математики СО РАН\\
-пр. ак. Коптюга, 4, 630090, г. Новосибирск,\\
-Телефон: +7-383-333-28-92, E-mail:
-vasily.a.dedok@gmail.com,~dedok@math.nsc.ru
-
-Карчевский Андрей Леонидович\\
-Институт математики СО РАН\\
-пр. ак. Коптюга, 4, 630090, г. Новосибирск,\\
-Телефон: +7-383-333-28-92, E-mail: karchevs@math.nsc.ru
-
-\bigskip
-\noindent \textbf{Authors information}
+\begin{thebibliography}{99}
 
 
-Dedok Vasily Aleksandrovich\\
-Sobolev Institute of Mathematics\\
-pr. Acad. Koptyug, 4, 630090, Novosibirsk, Russia\\
-Phone: +7-383-333-28-92, E-mail: vasily.a.dedok@gmail.com,
-dedok@math.nsc.ru
+\bibitem{ShS}
+Chadan~K., Sabatier~P.~C. 
+Inverse problems in quantum scattering theory. 
+New York: Springer Verl., 1977.
 
-Karchevsky Andrey Leonidovich\\
-Sobolev Institute of Mathematics\\
-pr. Acad. Koptyug, 4, 630090, Novosibirsk, Russia\\
-Phone: +7-383-333-28-92, E-mail: karchevs@math.nsc.ru
+\bibitem{New}
+Newton~R.~G. 
+Inverse Schr\"{o}dinger scattering in three dimensions. 
+New York: Springer-Verl., 1989.
+
+\bibitem{Kli1}
+Klibanov~M.~V. 
+Phaseless inverse scattering problems in three dimensions~// 
+SIAM J. Appl. Math. 2014. V.~74. P.~392-–410.
+
+\bibitem{Kli2}
+Klibanov~M.~V. 
+On the first solution of a long standing problem: Uniqueness of the phaseless quantum inverse scattering problem in 3-d~// 
+Appl. Math. Lett. 2014. V.~37. P.~82-–85.
+
+\bibitem{Kli3}
+Klibanov~M.~V. 
+Uniqueness of two phaseless non-overdetermined inverse acoustics problems in 3-d~// 
+Appl. Anal. 2014. V. 93. P. 1135–-1149.
+
+\bibitem{Kli4}
+Klibanov~M.~V.  
+On the recovery of a 2-D function from the modulus of its Fourier transform~// 
+J. Math. Anal. Appl. 2006. V. 323. P.~818–843. DOI: 10.1016/j.jmaa.2005.10.079
+
+\bibitem{Kli5}
+Klibanov~M.~V. 
+Phaseless inverse scattering problems in three dimensions~// 
+SIAM J. Appl. Math. 2014. V.~74, N~2. P. 392--410. DOI: 10.1137/130926250
+
+\bibitem{Kli6}
+Klibanov~M.~V.  
+Uniqueness of two phaseless non-overdetermined inverse acoustics problems in 3-d~// 
+Applicable Analysis: An International Journal. 2014. V.~93, N~6. P.~1135--1149. DOI: 10.1080/00036811.2013.818136
+\bibitem{Kli7}
+Klibanov~M.~V., Kamburg~V.G. 
+Uniqueness of a one-dimensional phase retrieval problem~// 
+Inverse Problems. 2014. V.~30. 075004 (10 p). DOI: 10.1088/0266-5611/30/7/075004
+
+\bibitem{Kli8}
+Klibanov~M.~V. 
+On the first solution of a long standing problem: Uniqueness of the phaseless quantum inverse scattering problem in 3-d~// 
+Applied Mathematics Letters. 2014. V.~37. P.~82–-85. DOI: 10.1016/j.aml.2014.06.005
+
+\bibitem{Kli9}
+Klibanov~M.~V. 
+A phaseless inverse scattering problem for the 3-D Helmholtz equation~// 
+Inverse Problems and Imaging. 2017. V.~11, N~2. P.~263--276.  DOI: 10.3934/ipi.2017013
+
+\bibitem{KR1}
+Klibanov~M.V., Romanov~V.G. 
+The first solution of a long standing problem: Reconstruction formula for a 3-d phaseless inverse scattering problem for the SchrЁodinger equation~// 
+J. Inverse Ill-Posed Probl. 2015. V. 23, N 4. P. 415-–428. DOI: 10.1515/jiip-2015-0025
+
+\bibitem{KR2}
+Klibanov M.V., Romanov V.G. 
+Explicit solution of 3-D phaseless inverse scattering problems for the Schr\"{o}dinger equation: the plane wave case~// 
+Eurasian J. Math. Computer Appl. 2015. V. 3, N 1. P. 48–-63.
+
+\bibitem{KR3}
+Klibanov~M.~V., Romanov V.G. 
+Uniqueness of a 3-D coefficient inverse scattering problem without the phase information~// 
+Inverse Problems. 2017. V.~33. 095007 (10p). DOI: 10.1088/1361-6420/aa7a18
+
+\bibitem{N1}
+Novikov~R.~G.
+Explicit formulas and global uniqueness for phaseless inverse scattering in multidimensions~// 
+J. Geom. Anal. 2015. DOI: 10.1007/5.12220–014–9553–7.
+
+\bibitem{N2}
+Novikov~R.~G.
+Formulas for phase recovering from phaseless scattering data at fixed frequency~// 
+Bull. Sci. Math. 2015. DOI: 10.1016/j.bulsci.2015.04.005.
+
+
+\bibitem{KR4}
+Klibanov~M.~V., Romanov~V.~G. 
+Explicit formula for the solution of the phaseless inverse scattering problem of imaging of nanostructures~// 
+J. Inverse Ill-Posed Probl. 2015. V. 23, N 2. P. 187–-193.
+
+\bibitem{KR5}
+Romanov V.G. 
+Some geometric aspects in inverse problems~// 
+Euras. J. Math. Computer Appl. 2015. V. 3, N 4. P. 68-–84.
+
+\bibitem{KR6}
+Klibanov~M.~V., Romanov~V.~G. 
+Reconstruction procedures for two inverse scattering problem without the phase information~// 
+SIAM J. Appl. Math. 2016. V. 76, N 1. P. 178-–196. DOI: 10.1137/15M1022367
+
+\bibitem{KR7}
+Klibanov~M.~V., Romanov~V.~G. 
+Two reconstruction procedures for a 3D phaseless inverse scattering problem for the generalized Helmholtz equation~// 
+Inverse Probl. 2016. V. 32, N 2. 015005 (16 p). DOI: 10.1088/0266-5611/32/1/015005
+
+\bibitem{R1}
+Романов~В.~Г. 
+Задача об определении коэффициента диэлектрической проницаемости по модулю рассеянного электрического поля~// 
+Сибирский математический журнал. 2017. Т.~58, №~4. C. 916-–924.
+
+\bibitem{R2}
+Романов~В.~Г. 
+Задача об определении коэффициента диэлектрической проницаемости в стационарной системе уравений Максвелла~// 
+Доклады РАН. 2017. Т. 474, №~4. C. 413-–417.
+
+\bibitem{K+1}
+Klibanov~M.~V. Nguyen~D.-L., Nguyen~L.~H., Liu~H. 
+A globally convergent numerical method for a 3D coefficient inverse problem with a single measurement of multi-frequency data~// 
+arXiv:1612.04014v1 [math.NA] 13 Dec 2016
+ 
+\bibitem{K+2}
+Klibanov~M.~V. Nguyen~L.~H., Pan~K. 
+Nanostructures imaging via numerical solution of a 3-D inverse scattering problem without the phase information~// 
+Applied Numerical Mathematics. 2016, V.~110. P.~190-–203. DOI: 10.1016/j.apnum.2016.08.014
+
+\bibitem{K+3}
+Klibanov~M.~V., Nguyen~D.-L., Nguyen~L.~H. 
+A coefficient inverse problem with a single measurement of phaseless scattering data~// 
+arXiv:1710.04804v1 [math.NA] 13 Oct 2017
+
+\bibitem{K+4}
+Kolesov~A.~E., Klibanov~M.~V. Nguyen~L.~H., Nguyen~D.-L., Th\`{a}nh~N.T. 
+Single measurement experimental data for an inverse medium problem inverted by a multi-frequency globally convergent numerical method~// 
+Applied Numerical Mathematics. 2017, V. 120. P.~176-–196. DOI: 10.1016/j.apnum.2017.05.007
+
+\bibitem{K+5}
+Nguyen D.-L., Klibanov~M.~V., Nguyen~L.~H., Kolesov~A.~E., Fiddy~A.~E., Liu~H. 
+Numerical solution of a coefficient inverse problem with multi-frequency experimental raw data by a globally convergent algorithm~// 
+Journal of Computational Physics. 2017. V.~345. P.~17-–32. DOI: 10.1016/j.jcp.2017.05.015
+\bibitem{K+6}
+Nguyen D.-L., Klibanov~M.~V., Nguyen~L.~H., Fiddy~M.~A. 
+Imaging of buried objects from multi-frequency experimental data using a globally convergent inversion method~// 
+J. Inverse Ill-Posed Probl. 2017. DOI: 10.1515/jiip-2017-0047
+
+\bibitem{BK1}
+Beilina~L., Klibanov~V.
+A globally convergent numerical method for a coefficient inverse problem~//
+SIAM J. Sci. Comput. 2008. V.~31, N~1, P.~478--509. DOI: 10.1137/070711414
+
+\bibitem{BK2}
+Beilina L., Klibanov~M.~V.
+A new approximate mathematical model for global convergence for a coefficient inverse problem with backscattering data~//
+J. Inverse Ill-Posed Probl. 2012. V. 20, P. 513–-565. DOI: 10.1515/jip-2012-0063
+
+\bibitem{BK3}
+Beilina L., Klibanov~M.~V.
+Approximate Global Convergence and Adaptivity for Coefficient Inverse Problems.
+2012, New York: Springer.
+
+\bibitem{BV}
+Борн~М., Вольф~Э. 
+Основы оптики.
+М.: Наука, 1973.
+
+\bibitem{Bah}
+Бахвалов~Н.~С. 
+Численные методы. 
+М.: Наука, 1973.
+
+\bibitem{Ort}
+Ортега~Дж., Пул~У. 
+Введение в численные методы решения дифференциальных уравнений. 
+М.: Наука, 1986.
+
+\bibitem{Hol}
+Современные методы решения обыкновенных дифференциальных уравнений. 
+Под ред.~Дж.~Хола и Дж.~Уайта. М.: Мир, 1979.
+
+\end{thebibliography} 
+
+
 
 
 \end{document}
+
+
+
+
+
+
+%
+\frac{1}{\omega^{2}}|H^{es}(x,\omega,y)|^{2} &=& (C-D)^{2}+4CD\sin^{2}\!\bigl(\omega(\tau-\tau_{0})\bigr)+O(1/\omega), \label{002}\\[2mm]
+%
+&& C=\frac{n\,|\,\nu\!\times\!a\,|}{2\mu_{0}\tau}, \ \ \ D=\frac{n^{2}_{0}\,|\,j^{0}\!\times\!\nu^{0}|}{4\pi\tau_{0}}. \nonumber 
