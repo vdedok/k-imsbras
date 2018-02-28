@@ -46,20 +46,25 @@ struct Point {
 class DirectEikonal {
 public:
 	DirectEikonal();
+	virtual ~DirectEikonal();
 	DirectProblemData tracePath(double x0, double y0, double z0, double x1, double y1, double z1);
 	DirectProblemData tracePath2(double x0, double y0, double z0, double x1, double y1, double z1);
 	DirectProblemData traceTrajectory(double x0, double y0, double z0, double vx, double vy, double vz);
 private:
-	double NData[SIZE][SIZE][SIZE];
+	double *NData;
 
 	void init();
 	void setupNData();
 	bool runTest();
 
+	double getNData(int x, int y, int z);
+	void setNData(int x, int y, int z, double value);
+
 	TraceData trace(double x0, double y0, double z0, double vx, double vy, double vz);
 };
 
 DirectEikonal::DirectEikonal() {
+	NData = new double[SIZE * SIZE * SIZE];
 	init();
 #ifdef RUN_TESTS
 	if (!runTest())
@@ -70,11 +75,23 @@ DirectEikonal::DirectEikonal() {
 	setupNData();
 }
 
+DirectEikonal::~DirectEikonal() {
+	delete [] NData;
+}
+
+double DirectEikonal::getNData(int x, int y, int z) {
+	return NData[z * SIZE * SIZE + y * SIZE + x];
+}
+
+void DirectEikonal::setNData(int x, int y, int z, double value) {
+	NData[z * SIZE * SIZE + y * SIZE + x] = value;
+}
+
 void DirectEikonal::init() {
 	for (int i = 0; i < SIZE; i++) {
 		for (int j = 0; j < SIZE; j++) {
 			for (int k = 0; k < SIZE; k++)
-				NData[i][j][k] = 1.0;
+				setNData(i, j, k, 1.0);
 		}
 	}
 }
@@ -82,11 +99,11 @@ void DirectEikonal::init() {
 void DirectEikonal::setupNData() {
 #ifdef DEBUG
 	for (int i = 0; i < SIZE; i++) {
-		NData[5][i][0] = 2.0;
-		NData[6][i][0] = 2.0;
-		NData[7][i][0] = 2.0;
-		NData[8][i][0] = 2.0;
-		NData[9][i][0] = 2.0;
+		setNData(5, i, 0, 2.0);
+		setNData(6, i, 0, 2.0);
+		setNData(7, i, 0, 2.0);
+		setNData(8, i, 0, 2.0);
+		setNData(9, i, 0, 2.0);
 	}
 #endif
 	int x0, y0, z0;
@@ -109,20 +126,20 @@ void DirectEikonal::setupNData() {
 		for (int j = 0; j < SIZE; j++) {
 			for (int k = 0; k < SIZE; k++) {
 #ifndef DEBUG
-				NData[i][j][k] = 1.0;
+				setNData(i, j, k, 1.0);
 #endif
 
 #ifdef DEBUG
 				int r;
 				r = (i - x0) * (i - x0) + (j - y0) * (j - y0) + (k - z0) * (k - z0);
 				if (r < r0) {
-					NData[i][j][k] = 1.2;
+					setNData(i, j, k, 1.2);
 					continue;
 					//fprintf(stderr, "1.2\n");
 				}
 				r = (i - x1) * (i - x1) + (j - y1) * (j - y1) + (k - z1) * (k - z1);
 				if (r < r1) {
-					NData[i][j][k] = 1.3;
+					setNData(i, j, k, 1.3);
 					//fprintf(stderr, "1.2: %f, %f, %f\n", (double)i / SIZE, (double)j / SIZE, (double)k / SIZE);
 				}
 #endif
@@ -375,7 +392,7 @@ TraceData DirectEikonal::trace(double x0, double y0, double z0, double vx, doubl
 
 	// v = c / n = 1 / n
 	// t = s / v = s * n
-	traceData.time = traceData.length * NData[pX0][pY0][pZ0];
+	traceData.time = traceData.length * getNData(pX0, pY0, pZ0);
 
 #ifdef DEBUG
 	fprintf(stderr, "DirectEikonal::trace: ***** len: %f\n", traceData.length);
@@ -466,7 +483,7 @@ DirectProblemData DirectEikonal::traceTrajectory(double x0, double y0, double z0
 #endif
 
 		double n1, n2;
-		n1 = NData[pX0][pY0][pZ0];
+		n1 = getNData(pX0, pY0, pZ0);
 /*
 		fprintf(stderr, "Sector0: %d, %d, %d: %f\n", pX0, pY0, pZ0, NData[pX0][pY0][pZ0]);
 		fprintf(stderr, "Sector1: %d, %d, %d: %f\n", pX1, pY1, pZ1, NData[pX1][pY1][pZ1]);
@@ -484,7 +501,7 @@ DirectProblemData DirectEikonal::traceTrajectory(double x0, double y0, double z0
 		vy = vy / vLength * n1;
 		vz = vz / vLength * n1;
 
-		n2 = NData[pX1][pY1][pZ1];
+		n2 = getNData(pX1, pY1, pZ1);
 
 		double scalarProd = vx * traceRay.nx + vy * traceRay.ny + vz * traceRay.nz;
 		double coeff = sqrt((n2 * n2 - n1 * n1) / (scalarProd * scalarProd) + 1.0) - 1.0;
