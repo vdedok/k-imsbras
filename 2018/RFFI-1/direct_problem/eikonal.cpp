@@ -5,15 +5,15 @@
 //#define DEBUG
 //#define RUN_TESTS
 
-const int SIZE = 2;
+const int SIZE = 11;
 const double DELTA = 1.0;
 const double ZERO = 0.0000000001;
 const double INFTY = 1000000000000.0;
 const double TEST_ZERO = 0.00001;
 const double REGION_SIZE = SIZE * DELTA + ZERO;
 const int CHECK_STEP = 10;
-const double SHOT_EPS = 0.01;
-const double SPEED = 5.0;
+const double SHOT_EPS = 0.25;
+const double SPEED = 0.25;
 
 struct TraceData {
 	double x0, y0, z0;
@@ -50,6 +50,8 @@ public:
 	DirectProblemData tracePath(double x0, double y0, double z0, double x1, double y1, double z1);
 	DirectProblemData tracePath2(double x0, double y0, double z0, double x1, double y1, double z1);
 	DirectProblemData traceTrajectory(double x0, double y0, double z0, double vx, double vy, double vz);
+
+	void setupSphere(int x, int y, int z, int radius, double coeff);
 private:
 	double *NData;
 
@@ -72,7 +74,7 @@ DirectEikonal::DirectEikonal() {
 	else
 		fprintf(stderr, "Tests passed\n");
 #endif
-	setupNData();
+//	setupNData();
 }
 
 DirectEikonal::~DirectEikonal() {
@@ -184,27 +186,12 @@ TraceData DirectEikonal::trace(double x0, double y0, double z0, double vx, doubl
 	fprintf(stderr, "DirectEikonal::trace: dx: %i, dy: %i, dz: %i\n", dx, dy, dz);
 #endif
 
-	/*
-	double planeX0 = DELTA * pX;
-	double planeX1 = DELTA * (pX + dx);
-
-	double planeY0 = DELTA * pY;
-	double planeY1 = DELTA * (pY + dy);
-
-	double planeZ0 = DELTA * pZ;
-	double planeZ1 = DELTA * (pZ + dz);
-	*/
-
 	double planeX0 = floor(x0);
 	double planeX1 = ceil(x0);
 	if (fabs(round(x0) - x0) < ZERO) {
 		planeX0 = round(x0);
 		planeX1 = planeX0 + DELTA * dx;
 	}
-/*
-	if (fabs(planeX0 - planeX1) < ZERO)
-		planeX1 = DELTA * (pX + dx);
-		*/
 
 	double planeY0 = floor(y0);
 	double planeY1 = ceil(y0);
@@ -212,29 +199,13 @@ TraceData DirectEikonal::trace(double x0, double y0, double z0, double vx, doubl
 		planeY0 = round(y0);
 		planeY1 = planeY0 + DELTA * dy;
 	}
-	/*
-	if (fabs(planeY0 - planeY1) < ZERO)
-		planeY1 = DELTA * (pY + dy);
-*/
+
 	double planeZ0 = floor(z0);
 	double planeZ1 = ceil(z0);
 	if (fabs(round(z0) - z0) < ZERO) {
 		planeZ0 = round(z0);
 		planeZ1 = planeZ0 + DELTA * dz;
 	}
-	/*
-	if (fabs(planeZ0 - planeZ1) < ZERO)
-		planeZ1 = DELTA * (pZ + dz);
-		*/
-
-/*
-	if (planeX1 > SIZE)
-		planeX1 = SIZE - 1;
-	if (planeY1 > SIZE)
-		planeY1 = SIZE - 1;
-	if (planeZ1 > SIZE)
-		planeZ1 = SIZE - 1;
-*/
 
 #ifdef DEBUG
 	fprintf(stderr, "DirectEikonal::trace: planeX0: %f, planeX1: %f\n", planeX0, planeX1);
@@ -395,7 +366,7 @@ TraceData DirectEikonal::trace(double x0, double y0, double z0, double vx, doubl
 	traceData.time = traceData.length * getNData(pX0, pY0, pZ0);
 
 #ifdef DEBUG
-	fprintf(stderr, "DirectEikonal::trace: ***** len: %f\n", traceData.length);
+	fprintf(stderr, "DirectEikonal::trace: ***** len: %f, NData: %f\n", traceData.length, getNData(pX0, pY0, pZ0));
 #endif
 
 	return traceData;
@@ -439,10 +410,10 @@ DirectProblemData DirectEikonal::traceTrajectory(double x0, double y0, double z0
 	result.y0 = y0;
 	result.z0 = z0;
 
-//	fprintf(stderr, "(%f, %f, %f) : %f\n", x0, y0, z0, REGION_SIZE);
-
 	while ((x0 < REGION_SIZE) && (y0 < REGION_SIZE) && (z0 < REGION_SIZE)) {
-//		fprintf(stderr, "STEP: (%f, %f, %f) : %f\n", x0, y0, z0, REGION_SIZE);
+#ifdef DEBUG
+		fprintf(stderr, "DirectEikonal::traceTrajectory: Start trajectory (%f, %f, %f) in direction (%f, %f, %f)\n", x0, y0, z0, vx, vy, vz);
+#endif
 		traceRay = trace(x0, y0, z0, vx, vy, vz);
 
 		int pX0, pY0, pZ0;
@@ -465,9 +436,7 @@ DirectProblemData DirectEikonal::traceTrajectory(double x0, double y0, double z0
 		fprintf(stderr, "DirectEikonal::traceTrajectory: traceRay.x1 - traceRay.nx / 2.0: %f. pX1: %d\n", traceRay.x1 - traceRay.nx / 2.0, pX1);
 		fprintf(stderr, "DirectEikonal::traceTrajectory: traceRay.y1 - traceRay.ny / 2.0: %f. pY1: %d\n", traceRay.y1 - traceRay.ny / 2.0, pY1);
 		fprintf(stderr, "DirectEikonal::traceTrajectory: traceRay.z1 - traceRay.nz / 2.0: %f. pZ1: %d\n", traceRay.z1 - traceRay.nz / 2.0, pZ1);
-#endif
 
-#ifdef DEBUG
 		fprintf(stderr, "DirectEikonal::traceTrajectory: Sector0: %d, %d, %d\n", pX0, pY0, pZ0);
 		fprintf(stderr, "DirectEikonal::traceTrajectory: Sector1: %d, %d, %d\n", pX1, pY1, pZ1);
 #endif
@@ -479,15 +448,12 @@ DirectProblemData DirectEikonal::traceTrajectory(double x0, double y0, double z0
 		time += traceRay.time;
 
 #ifdef DEBUG
-		fprintf(stderr, "DirectEikonal::traceTrajectory: Next point: %f, %f, %f\n", x0, y0, z0);
+		fprintf(stderr, "DirectEikonal::traceTrajectory: Next point: (%f, %f, %f). Normal: (%f, %f, %f) Length: %f. Time: %f\n",
+				        x0, y0, z0, traceRay.nx, traceRay.ny, traceRay.nz, traceRay.length, traceRay.time);
 #endif
 
 		double n1, n2;
 		n1 = getNData(pX0, pY0, pZ0);
-/*
-		fprintf(stderr, "Sector0: %d, %d, %d: %f\n", pX0, pY0, pZ0, NData[pX0][pY0][pZ0]);
-		fprintf(stderr, "Sector1: %d, %d, %d: %f\n", pX1, pY1, pZ1, NData[pX1][pY1][pZ1]);
-*/
 
 		if ((pX1 < 0) || (pY1 < 0) || (pZ1 < 0) ||
 				(pX1 >= SIZE) || (pY1 >= SIZE) || (pZ1 >= SIZE)) {
@@ -496,23 +462,48 @@ DirectProblemData DirectEikonal::traceTrajectory(double x0, double y0, double z0
 #endif
 			break;
 		}
+
 		double vLength = sqrt(vx * vx + vy * vy + vz * vz);
 		vx = vx / vLength * n1;
 		vy = vy / vLength * n1;
 		vz = vz / vLength * n1;
 
 		n2 = getNData(pX1, pY1, pZ1);
-
-		double scalarProd = vx * traceRay.nx + vy * traceRay.ny + vz * traceRay.nz;
-		double coeff = sqrt((n2 * n2 - n1 * n1) / (scalarProd * scalarProd) + 1.0) - 1.0;
-		coeff = coeff * scalarProd;
-
-		vx = vx + coeff * traceRay.nx;
-		vy = vy + coeff * traceRay.ny;
-		vz = vz + coeff * traceRay.nz;
 #ifdef DEBUG
 		fprintf(stderr, "DirectEikonal::traceTrajectory: n1: %f, n2: %f\n", n1, n2);
 #endif
+
+		double scalarProd = vx * traceRay.nx + vy * traceRay.ny + vz * traceRay.nz;
+		double reflectCoeff = (n2 * n2 - n1 * n1) / (scalarProd * scalarProd) + 1.0;
+
+		if (reflectCoeff > ZERO) {
+			double coeff = (sqrt(reflectCoeff) - 1.0) * scalarProd;
+
+			vx = vx + coeff * traceRay.nx;
+			vy = vy + coeff * traceRay.ny;
+			vz = vz + coeff * traceRay.nz;
+#ifdef DEBUG
+			fprintf(stderr, "DirectEikonal::traceTrajectory: Refraction: VX: %f, VY: %f, VZ: %f\n", vx, vy, vz);
+#endif
+		} else {
+			vx = vx - 2 * scalarProd * traceRay.nx;
+			vy = vy - 2 * scalarProd * traceRay.ny;
+			vz = vz - 2 * scalarProd * traceRay.nz;
+#ifdef DEBUG
+			fprintf(stderr, "DirectEikonal::traceTrajectory: Entire inner reflection: VX: %f, VY: %f, VZ: %f\n", vx, vy, vz);
+#endif
+		}
+
+		/*
+		if (n2 > 1.01) {
+			fprintf(stderr, "***** NX: %f, NY: %f, NZ: %f\n", traceRay.nx, traceRay.ny, traceRay.nz);
+			fprintf(stderr, "N1: %f, N2: %f\n", n1, n2);
+			fprintf(stderr, "scalar: %f, coeff: %f\n", scalarProd, coeff);
+			fprintf(stderr, "***** VX: %f, VY: %f, VZ: %f\n", vx, vy, vz);
+			exit(0);
+		}
+		*/
+
 	}
 #ifdef DEBUG
 	fprintf(stderr, "DirectEikonal::traceTrajectory: Total length: %f, time: %f\n", length, time);
@@ -560,7 +551,7 @@ DirectProblemData DirectEikonal::tracePath2(double x0, double y0, double z0,
 				+ (y1 - local.y1) * (y1 - local.y1)
 				+ (z1 - local.z1) * (z1 - local.z1));
 #ifdef DEBUG
-		fprintf(stderr, "DirectEikonal::tracePath2: local: length: %f, time: %f\n", local.length, local.time);
+		fprintf(stderr, "DirectEikonal::tracePath2: local: length: %f, time: %f, steps: %d, localDistance: %f\n", local.length, local.time, steps, localDistance);
 #endif
 		if (localDistance < distance) {
 			distance = localDistance;
@@ -578,9 +569,15 @@ DirectProblemData DirectEikonal::tracePath2(double x0, double y0, double z0,
 //
 		fprintf(stderr, "DirectEikonal::tracePath2: v_old x: %f, y: %f, z: %f\n", vx, vy, vz);
 #endif
+		/*
 		vx = (x1 - x0) + SPEED * localDistance * diff_x;
 		vy = (y1 - y0) + SPEED * localDistance * diff_y;
 		vz = (z1 - z0) + SPEED * localDistance * diff_z;
+		*/
+
+		vx = (x1 - x0) + SPEED * diff_x;
+		vy = (y1 - y0) + SPEED * diff_y;
+		vz = (z1 - z0) + SPEED * diff_z;
 
 		length = sqrt(vx * vx + vy * vy + vz * vz);
 		vx = vx / length;
@@ -680,6 +677,22 @@ void fillPointsTest1(Point *points) {
 	p++;
 }
 
+void fillPointsTest2(Point *points) {
+	int p = 0;
+
+	points[p].x = 0.5;
+	points[p].y = 0.5;
+	points[p].z = 0;
+	points[p].p = 0;
+	p++;
+
+	points[p].x = 2.5;
+	points[p].y = 2.5;
+	points[p].z = 3.0;
+	points[p].p = 1;
+	p++;
+}
+
 void fillPoints(Point *points) {
 	int p = 0;
 
@@ -744,6 +757,24 @@ void fillPoints(Point *points) {
 	}
 }
 
+void DirectEikonal::setupSphere(int x, int y, int z, int radius, double coeff) {
+	for (int i = 0; i < SIZE; i++) {
+		for (int j = 0; j < SIZE; j++) {
+			for (int k = 0; k < SIZE; k++) {
+				double r = 0;
+				r += (double)(i - x) * (double)(i - x);
+				r += (double)(j - y) * (double)(j - y);
+				r += (double)(k - z) * (double)(k - z);
+				r = sqrt(r);
+
+				if (r < (double)radius)
+					setNData(i, j, k, coeff);
+			}
+		}
+	}
+
+}
+
 int main(int argc, char** argv) {
 	fprintf(stderr, "Running eikonal solutioner...\n");
 
@@ -752,6 +783,7 @@ int main(int argc, char** argv) {
 	Point *points = new Point[pointsCount];
 	fillPoints(points);
 	//fillPointsTest1(points);
+	//fillPointsTest2(points);
 
 #ifdef DEBUG2
 	for (int i = 0; i < 6 * SIZE * SIZE; i++) {
@@ -759,6 +791,7 @@ int main(int argc, char** argv) {
 	}
 #endif
 
+/*
 	DirectEikonal directProblem;
 	double length = 0, time = 0;
 	int cnt = 0;
@@ -798,6 +831,36 @@ int main(int argc, char** argv) {
 #ifdef DEBUG
 	fprintf(stderr, "test len: %f\n", tl);
 #endif
+*/
+
+	double scale = DELTA * SIZE;
+	double error = 0;
+	DirectEikonal directProblemSrc, directProblemTest;
+	directProblemSrc.setupSphere(1, 1, 1, 1, 1.1);
+	directProblemTest.setupSphere(1, 1, 1, 1, 1.05);
+	int traces = 0;
+	for (int i = 0; i < pointsCount; i++) {
+			for (int j = i + 1; j < pointsCount; j++) {
+				Point p1, p2;
+				p1 = points[i];
+				p2 = points[j];
+
+				if (p1.p == p2.p)
+					continue;
+
+				//fprintf(stderr, "i: %d, j: %d\n", i, j);
+				//fprintf(stderr, "dSrc\n");
+				DirectProblemData dSrc = directProblemSrc.tracePath2(p1.x, p1.y, p1.z, p2.x, p2.y, p2.z);
+				//fprintf(stderr, "dTest\n");
+				DirectProblemData dTest = directProblemTest.tracePath2(p1.x, p1.y, p1.z, p2.x, p2.y, p2.z);
+
+				//fprintf(stderr, " %f -- %f\n", dSrc.time, dTest.time);
+				error += ((dSrc.time - dTest.time) / scale) * ((dSrc.time - dTest.time) / scale);
+				traces++;
+			}
+	}
+
+	fprintf(stderr, "Traces: %d, Error: %f\n", traces, error);
 
 /*
 
