@@ -772,12 +772,9 @@ void DirectEikonal::setupSphere(int x, int y, int z, int radius, double coeff) {
 			}
 		}
 	}
-
 }
 
-int main(int argc, char** argv) {
-	fprintf(stderr, "Running eikonal solutioner...\n");
-
+void testSimpleMetric() {
 	int pointsCount = 6 * SIZE * SIZE;
 	//int pointsCount = 2;
 	Point *points = new Point[pointsCount];
@@ -785,13 +782,14 @@ int main(int argc, char** argv) {
 	//fillPointsTest1(points);
 	//fillPointsTest2(points);
 
+	fprintf(stderr, "Run testSimpleMetric()\n");
+
 #ifdef DEBUG2
 	for (int i = 0; i < 6 * SIZE * SIZE; i++) {
 		fprintf(stderr, "(%f, %f, %f)\n", points[i].x, points[i].y, points[i].z);
 	}
 #endif
 
-/*
 	DirectEikonal directProblem;
 	double length = 0, time = 0;
 	int cnt = 0;
@@ -831,15 +829,28 @@ int main(int argc, char** argv) {
 #ifdef DEBUG
 	fprintf(stderr, "test len: %f\n", tl);
 #endif
-*/
+
+	delete [] points;
+}
+
+void runFunctionalStatisticN(int x, int y, int z, int radius, double sourceN, double testNStart, double testNEnd, double delta) {
+	int pointsCount = 6 * SIZE * SIZE;
+	Point *points = new Point[pointsCount];
+	fillPoints(points);
+
+	fprintf(stderr, "runFunctionalStatisticN: center: (%d, %d, %d), radius: %d, sourceN: %f\n", x, y, z, radius, sourceN);
 
 	double scale = DELTA * SIZE;
-	double error = 0;
 	DirectEikonal directProblemSrc, directProblemTest;
-	directProblemSrc.setupSphere(1, 1, 1, 1, 1.1);
-	directProblemTest.setupSphere(1, 1, 1, 1, 1.05);
-	int traces = 0;
-	for (int i = 0; i < pointsCount; i++) {
+	directProblemSrc.setupSphere(x, y, z, radius, sourceN);
+
+	double testN = testNStart;
+
+	while (testN < testNEnd) {
+		directProblemTest.setupSphere(x, y, z, radius, testN);
+		double error = 0;
+		int traces = 0;
+		for (int i = 0; i < pointsCount; i++) {
 			for (int j = i + 1; j < pointsCount; j++) {
 				Point p1, p2;
 				p1 = points[i];
@@ -848,19 +859,29 @@ int main(int argc, char** argv) {
 				if (p1.p == p2.p)
 					continue;
 
-				//fprintf(stderr, "i: %d, j: %d\n", i, j);
-				//fprintf(stderr, "dSrc\n");
 				DirectProblemData dSrc = directProblemSrc.tracePath2(p1.x, p1.y, p1.z, p2.x, p2.y, p2.z);
-				//fprintf(stderr, "dTest\n");
 				DirectProblemData dTest = directProblemTest.tracePath2(p1.x, p1.y, p1.z, p2.x, p2.y, p2.z);
 
-				//fprintf(stderr, " %f -- %f\n", dSrc.time, dTest.time);
 				error += ((dSrc.time - dTest.time) / scale) * ((dSrc.time - dTest.time) / scale);
 				traces++;
 			}
+		}
+
+		fprintf(stderr, "TestN: %f, Traces: %d, Error: %f\n", testN, traces, error);
+
+		testN += delta;
 	}
 
-	fprintf(stderr, "Traces: %d, Error: %f\n", traces, error);
+	delete [] points;
+}
+
+int main(int argc, char** argv) {
+	fprintf(stderr, "Running eikonal solutioner...\n");
+
+	runFunctionalStatisticN(5, 5, 5, 4, 1.1, 1.0, 1.5, 0.05/2);
+	runFunctionalStatisticN(5, 5, 5, 4, 1.2, 1.0, 1.5, 0.05/2);
+	runFunctionalStatisticN(5, 5, 5, 4, 1.3, 1.0, 1.5, 0.05/2);
+	runFunctionalStatisticN(5, 5, 5, 4, 1.4, 1.0, 1.5, 0.05/2);
 
 /*
 
@@ -902,7 +923,6 @@ int main(int argc, char** argv) {
 	}
 	fclose(f);
 */
-	delete [] points;
 	fprintf(stderr, "Finish!\n");
 	return 0;
 }
