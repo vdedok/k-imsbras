@@ -5,7 +5,9 @@
 //#define DEBUG
 //#define RUN_TESTS
 
-const int SIZE = 11;
+// test 1 -> SIZE = 11
+// test 2 -> SIZE = 21;
+const int SIZE = 21;
 const double DELTA = 1.0;
 const double ZERO = 0.0000000001;
 const double INFTY = 1000000000000.0;
@@ -875,13 +877,60 @@ void runFunctionalStatisticN(int x, int y, int z, int radius, double sourceN, do
 	delete [] points;
 }
 
+
+void runFunctionalStatisticRad(int x, int y, int z, int radius, double sourceN, int testRadStart, int testRadEnd) {
+	int pointsCount = 6 * SIZE * SIZE;
+	Point *points = new Point[pointsCount];
+	fillPoints(points);
+
+	fprintf(stderr, "pointsCount: %d\n", pointsCount);
+	fprintf(stderr, "runFunctionalStatisticRad: center: (%d, %d, %d), radius: %d, sourceN: %f\n", x, y, z, radius, sourceN);
+
+	double scale = DELTA * SIZE;
+	DirectEikonal directProblemSrc, directProblemTest;
+	directProblemSrc.setupSphere(x, y, z, radius, sourceN);
+
+	for (int testRad = testRadStart; testRad <= testRadEnd; testRad++) {
+
+		directProblemTest.setupSphere(x, y, z, testRad, sourceN);
+		double error = 0;
+		int traces = 0;
+		for (int i = 0; i < pointsCount; i++) {
+			for (int j = i + 1; j < pointsCount; j++) {
+				Point p1, p2;
+				p1 = points[i];
+				p2 = points[j];
+
+				if (p1.p == p2.p)
+					continue;
+
+				DirectProblemData dSrc = directProblemSrc.tracePath2(p1.x, p1.y, p1.z, p2.x, p2.y, p2.z);
+				DirectProblemData dTest = directProblemTest.tracePath2(p1.x, p1.y, p1.z, p2.x, p2.y, p2.z);
+
+				error += ((dSrc.time - dTest.time) / scale) * ((dSrc.time - dTest.time) / scale);
+				traces++;
+			}
+		}
+
+		fprintf(stderr, "TestRad: %d, Traces: %d, Error: %f\n", testRad, traces, error);
+
+	}
+	delete [] points;
+}
 int main(int argc, char** argv) {
 	fprintf(stderr, "Running eikonal solutioner...\n");
 
-	runFunctionalStatisticN(5, 5, 5, 4, 1.1, 1.0, 1.5, 0.05/2);
-	runFunctionalStatisticN(5, 5, 5, 4, 1.2, 1.0, 1.5, 0.05/2);
-	runFunctionalStatisticN(5, 5, 5, 4, 1.3, 1.0, 1.5, 0.05/2);
-	runFunctionalStatisticN(5, 5, 5, 4, 1.4, 1.0, 1.5, 0.05/2);
+	fprintf(stderr, "runFunctionalStatisticN\n");
+	runFunctionalStatisticN(10, 10, 10, 9, 1.1, 1.0, 1.5, 0.001);
+	runFunctionalStatisticN(10, 10, 10, 9, 1.2, 1.0, 1.5, 0.001);
+	runFunctionalStatisticN(10, 10, 10, 9, 1.3, 1.0, 1.5, 0.001);
+	runFunctionalStatisticN(10, 10, 10, 9, 1.4, 1.0, 1.5, 0.001);
+
+	fprintf(stderr, "runFunctionalStatisticRad\n");
+	runFunctionalStatisticRad(10, 10, 10, 4, 1.1, 2, 9);
+	runFunctionalStatisticRad(10, 10, 10, 5, 1.2, 2, 9);
+	runFunctionalStatisticRad(10, 10, 10, 6, 1.3, 2, 9);
+	runFunctionalStatisticRad(10, 10, 10, 7, 1.4, 2, 9);
 
 /*
 
