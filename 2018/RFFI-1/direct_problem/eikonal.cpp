@@ -4,9 +4,15 @@
 
 //#define DEBUG
 //#define DEBUG2
+//#define DEBUG3
 //#define RUN_TESTS
 
+// Режим минимизации функционала
 #define MODE3
+
+// Режим заполнения
+#define AVERAGE
+//#define GRADIENT
 
 // test 1 -> SIZE = 21
 // test 2 -> SIZE = 31;
@@ -16,15 +22,18 @@ const double ZERO = 0.0000000001;
 const double INFTY = 1000000000000.0;
 const double TEST_ZERO = 0.00001;
 const double REGION_SIZE = SIZE * DELTA + ZERO;
+const double MREGION_SIZE = SIZE * DELTA - ZERO;
 const int CHECK_STEP = 10;
-const double SHOT_EPS = 0.25;
+const double SHOT_EPS = DELTA / 2.0;
 const double SPEED = 0.25;
 const double GRAD_SPEED = 0.05;
 const double DX = 0.001;
+const double TK = 1.1;
 
 struct TraceData {
 	double x0, y0, z0;
 	double x1, y1, z1;
+	double lx, ly, lz;
 	double nx, ny, nz;
 	double length;
 	double time;
@@ -48,15 +57,38 @@ struct TestData {
 struct Point {
        double x, y, z;
        int p;
+       int i, j;
+       int pointNumber;
+};
+
+struct LocalTraceData {
+	double vx, vy, vz;
+	double px, py, pz;
+	int j;
+	double localDistance;
+	double tau;
+	int visitStatus;
+	/*
+	 *  0 - отсутствует путь
+	 *  1 - есть путь
+	 *  2 - точки на одной грани
+	 *  -1 - точки совпадают
+	 *
+	 */
 };
 
 class DirectEikonal {
 public:
 	DirectEikonal();
 	virtual ~DirectEikonal();
+
+	void calculateDirectProblem(Point *points, int pointsCount, int i, LocalTraceData *localTraces);
+
 	DirectProblemData tracePath(double x0, double y0, double z0, double x1, double y1, double z1);
 	DirectProblemData traceTrajectory(double x0, double y0, double z0, double vx, double vy, double vz);
 
+	DirectProblemData antiGradientStep(double x0, double y0, double z0, double vx, double vy, double vz,
+			double x1, double y1, double z1, double localDistance);
 	void setupSphere(int x, int y, int z, int radius, double coeff);
 private:
 	double *NData;
@@ -168,7 +200,7 @@ TraceData DirectEikonal::trace(double x0, double y0, double z0, double vx, doubl
 	pY = y0 / DELTA;
 	pZ = z0 / DELTA;
 
-#ifdef DEBUG
+#ifdef DEBUG3
 	fprintf(stderr, "DirectEikonal::trace: x0: %f, y0: %f, z0: %f\n", x0, y0, z0);
 	fprintf(stderr, "DirectEikonal::trace: vx: %f, vy: %f, vz: %f\n", vx, vy, vz);
 	fprintf(stderr, "DirectEikonal::trace: INT: x: %d, y: %d, z: %d\n", pX, pY, pZ);
@@ -191,7 +223,7 @@ TraceData DirectEikonal::trace(double x0, double y0, double z0, double vx, doubl
 	else if (vz < -ZERO)
 		dz = -1;
 
-#ifdef DEBUG
+#ifdef DEBUG3
 	fprintf(stderr, "DirectEikonal::trace: dx: %i, dy: %i, dz: %i\n", dx, dy, dz);
 #endif
 
@@ -227,19 +259,20 @@ TraceData DirectEikonal::trace(double x0, double y0, double z0, double vx, doubl
 	vy = vy / v;
 	vz = vz / v;
 
-#ifdef DEBUG
+#ifdef DEBUG3
 	fprintf(stderr, "DirectEikonal::trace: vx: %f, vy: %f, vz: %f\n", vx, vy, vz);
 #endif
 
 	double t = INFTY;
 	double nx = 0, ny = 0, nz = 0;
 	double px = 0, py = 0, pz = 0;
+	double lx = 0, ly = 0, lz = 0;
 
 	if (fabs(vx) > ZERO) {
 		double t0 = (planeX0 - x0) / vx;
 		double t1 = (planeX1 - x0) / vx;
 
-#ifdef DEBUG
+#ifdef DEBUG3
 		fprintf(stderr, "DirectEikonal::trace: X: t0: %f, t1: %f, t: %f\n", t0, t1, t);
 #endif
 
@@ -248,6 +281,9 @@ TraceData DirectEikonal::trace(double x0, double y0, double z0, double vx, doubl
 			px = x0 + t * vx;
 			py = y0 + t * vy;
 			pz = z0 + t * vz;
+			lx = x0 + TK * t * vx;
+			ly = y0 + TK * t * vy;
+			lz = z0 + TK * t * vz;
 
 			if (vx > 0.0)
 				nx = -1.0;
@@ -262,6 +298,9 @@ TraceData DirectEikonal::trace(double x0, double y0, double z0, double vx, doubl
 			px = x0 + t * vx;
 			py = y0 + t * vy;
 			pz = z0 + t * vz;
+			lx = x0 + TK * t * vx;
+			ly = y0 + TK * t * vy;
+			lz = z0 + TK * t * vz;
 
 			if (vx > 0.0)
 				nx = -1.0;
@@ -276,7 +315,7 @@ TraceData DirectEikonal::trace(double x0, double y0, double z0, double vx, doubl
 		double t0 = (planeY0 - y0) / vy;
 		double t1 = (planeY1 - y0) / vy;
 
-#ifdef DEBUG
+#ifdef DEBUG3
 		fprintf(stderr, "DirectEikonal::trace: Y: t0: %f, t1: %f, t: %f\n", t0, t1, t);
 #endif
 
@@ -285,6 +324,9 @@ TraceData DirectEikonal::trace(double x0, double y0, double z0, double vx, doubl
 			px = x0 + t * vx;
 			py = y0 + t * vy;
 			pz = z0 + t * vz;
+			lx = x0 + TK * t * vx;
+			ly = y0 + TK * t * vy;
+			lz = z0 + TK * t * vz;
 
 			nx = 0.0;
 			if (vy > 0.0)
@@ -299,6 +341,9 @@ TraceData DirectEikonal::trace(double x0, double y0, double z0, double vx, doubl
 			px = x0 + t * vx;
 			py = y0 + t * vy;
 			pz = z0 + t * vz;
+			lx = x0 + TK * t * vx;
+			ly = y0 + TK * t * vy;
+			lz = z0 + TK * t * vz;
 
 			nx = 0.0;
 			if (vy > 0.0)
@@ -322,6 +367,9 @@ TraceData DirectEikonal::trace(double x0, double y0, double z0, double vx, doubl
 			px = x0 + t * vx;
 			py = y0 + t * vy;
 			pz = z0 + t * vz;
+			lx = x0 + TK * t * vx;
+			ly = y0 + TK * t * vy;
+			lz = z0 + TK * t * vz;
 
 			nx = 0.0;
 			ny = 0.0;
@@ -336,6 +384,9 @@ TraceData DirectEikonal::trace(double x0, double y0, double z0, double vx, doubl
 			px = x0 + t * vx;
 			py = y0 + t * vy;
 			pz = z0 + t * vz;
+			lx = x0 + TK * t * vx;
+			ly = y0 + TK * t * vy;
+			lz = z0 + TK * t * vz;
 
 			nx = 0.0;
 			ny = 0.0;
@@ -358,6 +409,9 @@ TraceData DirectEikonal::trace(double x0, double y0, double z0, double vx, doubl
 	traceData.x1 = px;
 	traceData.y1 = py;
 	traceData.z1 = pz;
+	traceData.lx = lx;
+	traceData.ly = ly;
+	traceData.lz = lz;
 	traceData.nx = nx;
 	traceData.ny = ny;
 	traceData.nz = nz;
@@ -419,11 +473,17 @@ DirectProblemData DirectEikonal::traceTrajectory(double x0, double y0, double z0
 	result.y0 = y0;
 	result.z0 = z0;
 
-	while ((x0 < REGION_SIZE) && (y0 < REGION_SIZE) && (z0 < REGION_SIZE)) {
-#ifdef DEBUG
+	while ((x0 < REGION_SIZE) && (y0 < REGION_SIZE) && (z0 < REGION_SIZE) &&
+			(x0 > -ZERO) && (y0 > -ZERO) && (z0 > -ZERO)) {
+#ifdef DEBUG3
 		fprintf(stderr, "DirectEikonal::traceTrajectory: Start trajectory (%f, %f, %f) in direction (%f, %f, %f)\n", x0, y0, z0, vx, vy, vz);
 #endif
 		traceRay = trace(x0, y0, z0, vx, vy, vz);
+
+#ifdef DEBUG3
+		fprintf(stderr, "DirectEikonal::traceTrajectory: P(%f, %f, %f), LP(%f, %f, %f)\n",
+				traceRay.x1, traceRay.y1, traceRay.z1, traceRay.lx, traceRay.ly, traceRay.lz);
+#endif
 
 		int pX0, pY0, pZ0;
 		pX0 = (x0 + traceRay.x1) / 2.0 / DELTA;
@@ -441,7 +501,7 @@ DirectProblemData DirectEikonal::traceTrajectory(double x0, double y0, double z0
 		if ((traceRay.z1 - traceRay.nz / 2.0) < 0)
 			pZ1 = -1;
 
-#ifdef DEBUG
+#ifdef DEBUG3
 		fprintf(stderr, "DirectEikonal::traceTrajectory: traceRay.x1 - traceRay.nx / 2.0: %f. pX1: %d\n", traceRay.x1 - traceRay.nx / 2.0, pX1);
 		fprintf(stderr, "DirectEikonal::traceTrajectory: traceRay.y1 - traceRay.ny / 2.0: %f. pY1: %d\n", traceRay.y1 - traceRay.ny / 2.0, pY1);
 		fprintf(stderr, "DirectEikonal::traceTrajectory: traceRay.z1 - traceRay.nz / 2.0: %f. pZ1: %d\n", traceRay.z1 - traceRay.nz / 2.0, pZ1);
@@ -456,7 +516,7 @@ DirectProblemData DirectEikonal::traceTrajectory(double x0, double y0, double z0
 		length += traceRay.length;
 		time += traceRay.time;
 
-#ifdef DEBUG
+#ifdef DEBUG3
 		fprintf(stderr, "DirectEikonal::traceTrajectory: Next point: (%f, %f, %f). Normal: (%f, %f, %f) Length: %f. Time: %f\n",
 				        x0, y0, z0, traceRay.nx, traceRay.ny, traceRay.nz, traceRay.length, traceRay.time);
 #endif
@@ -464,9 +524,18 @@ DirectProblemData DirectEikonal::traceTrajectory(double x0, double y0, double z0
 		double n1, n2;
 		n1 = getNData(pX0, pY0, pZ0);
 
+/*
 		if ((pX1 < 0) || (pY1 < 0) || (pZ1 < 0) ||
 				(pX1 >= SIZE) || (pY1 >= SIZE) || (pZ1 >= SIZE)) {
-#ifdef DEBUG
+#ifdef DEBUG3
+			fprintf(stderr, "DirectEikonal::traceTrajectory: Trace finished\n");
+#endif
+			break;
+		}
+*/
+		if ((traceRay.lx < - ZERO) || (traceRay.ly < -ZERO)  || (traceRay.lz < -ZERO) ||
+				(traceRay.lx > REGION_SIZE) || (traceRay.ly > REGION_SIZE) || (traceRay.lz > REGION_SIZE)) {
+#ifdef DEBUG3
 			fprintf(stderr, "DirectEikonal::traceTrajectory: Trace finished\n");
 #endif
 			break;
@@ -478,7 +547,7 @@ DirectProblemData DirectEikonal::traceTrajectory(double x0, double y0, double z0
 		vz = vz / vLength * n1;
 
 		n2 = getNData(pX1, pY1, pZ1);
-#ifdef DEBUG
+#ifdef DEBUG3
 		fprintf(stderr, "DirectEikonal::traceTrajectory: n1: %f, n2: %f\n", n1, n2);
 #endif
 
@@ -491,30 +560,19 @@ DirectProblemData DirectEikonal::traceTrajectory(double x0, double y0, double z0
 			vx = vx + coeff * traceRay.nx;
 			vy = vy + coeff * traceRay.ny;
 			vz = vz + coeff * traceRay.nz;
-#ifdef DEBUG
+#ifdef DEBUG3
 			fprintf(stderr, "DirectEikonal::traceTrajectory: Refraction: VX: %f, VY: %f, VZ: %f\n", vx, vy, vz);
 #endif
 		} else {
 			vx = vx - 2 * scalarProd * traceRay.nx;
 			vy = vy - 2 * scalarProd * traceRay.ny;
 			vz = vz - 2 * scalarProd * traceRay.nz;
-#ifdef DEBUG
+#ifdef DEBUG3
 			fprintf(stderr, "DirectEikonal::traceTrajectory: Entire inner reflection: VX: %f, VY: %f, VZ: %f\n", vx, vy, vz);
 #endif
 		}
-
-		/*
-		if (n2 > 1.01) {
-			fprintf(stderr, "***** NX: %f, NY: %f, NZ: %f\n", traceRay.nx, traceRay.ny, traceRay.nz);
-			fprintf(stderr, "N1: %f, N2: %f\n", n1, n2);
-			fprintf(stderr, "scalar: %f, coeff: %f\n", scalarProd, coeff);
-			fprintf(stderr, "***** VX: %f, VY: %f, VZ: %f\n", vx, vy, vz);
-			exit(0);
-		}
-		*/
-
 	}
-#ifdef DEBUG
+#ifdef DEBUG3
 	fprintf(stderr, "DirectEikonal::traceTrajectory: Total length: %f, time: %f\n", length, time);
 #endif
 
@@ -614,6 +672,7 @@ DirectProblemData DirectEikonal::tracePath3(double x0, double y0, double z0,
 
 		fprintf(stderr, "DirectEikonal::tracePath3: steps: %d, localDistance: %f\n", steps, localDistance);
 #endif
+		fprintf(stderr, "steps: %d\n", steps);
 	}
 
 #ifdef DEBUG2
@@ -812,6 +871,50 @@ void fillPointsTest2(Point *points) {
 	p++;
 }
 
+int getPointNumber(int i, int j, int p) {
+	return (i * SIZE + j) * 6 + p;
+}
+
+int getPoint(double x, double y, double z) {
+	//fprintf(stderr, "getPoint (%f, %f, %f)\n", x, y, z);
+	int p = 0;
+	int i = 0, j = 0;
+	if (z < ZERO) {
+		p = 0;
+		i = (int)(x / DELTA);
+		j = (int)(y / DELTA);
+	} else if (z > MREGION_SIZE) {
+		p = 1;
+		i = (int)(x / DELTA);
+		j = (int)(y / DELTA);
+	} else if (y < ZERO) {
+		p = 2;
+		i = (int)(x / DELTA);
+		j = (int)(z / DELTA);
+	} else if (y > MREGION_SIZE) {
+		p = 3;
+		i = (int)(x / DELTA);
+		j = (int)(z / DELTA);
+	} else if (x < ZERO) {
+		p = 4;
+		i = (int)(y / DELTA);
+		j = (int)(z / DELTA);
+	} else if (x > MREGION_SIZE) {
+		p = 5;
+		i = (int)(y / DELTA);
+		j = (int)(z / DELTA);
+	}
+
+	//fprintf(stderr, "%d - (%d, %d)\n", p, i, j);
+
+	if (i >= SIZE)
+		i = SIZE - 1;
+	if (j >= SIZE)
+		j = SIZE - 1;
+
+	return getPointNumber(i, j, p);
+}
+
 void fillPoints(Point *points) {
 	int p = 0;
 
@@ -825,7 +928,10 @@ void fillPoints(Point *points) {
 			points[p].x = x;
 			points[p].y = y;
 			points[p].z = z;
+			points[p].i = i;
+			points[p].j = j;
 			points[p].p = 0;
+			points[p].pointNumber = p;
 			p++;
 
 			x = DELTA * i + DELTA / 2;
@@ -834,7 +940,10 @@ void fillPoints(Point *points) {
 			points[p].x = x;
 			points[p].y = y;
 			points[p].z = z;
+			points[p].i = i;
+			points[p].j = j;
 			points[p].p = 1;
+			points[p].pointNumber = p;
 			p++;
 
 			x = DELTA * i + DELTA / 2;
@@ -843,7 +952,10 @@ void fillPoints(Point *points) {
 			points[p].x = x;
 			points[p].y = y;
 			points[p].z = z;
+			points[p].i = i;
+			points[p].j = j;
 			points[p].p = 2;
+			points[p].pointNumber = p;
 			p++;
 
 			x = DELTA * i + DELTA / 2;
@@ -852,7 +964,10 @@ void fillPoints(Point *points) {
 			points[p].x = x;
 			points[p].y = y;
 			points[p].z = z;
+			points[p].i = i;
+			points[p].j = j;
 			points[p].p = 3;
+			points[p].pointNumber = p;
 			p++;
 
 			x = 0;
@@ -861,7 +976,10 @@ void fillPoints(Point *points) {
 			points[p].x = x;
 			points[p].y = y;
 			points[p].z = z;
+			points[p].i = i;
+			points[p].j = j;
 			points[p].p = 4;
+			points[p].pointNumber = p;
 			p++;
 
 			x = SIZE * DELTA;
@@ -870,7 +988,10 @@ void fillPoints(Point *points) {
 			points[p].x = x;
 			points[p].y = y;
 			points[p].z = z;
+			points[p].i = i;
+			points[p].j = j;
 			points[p].p = 5;
+			points[p].pointNumber = p;
 			p++;
 		}
 	}
@@ -1120,15 +1241,260 @@ void runFunctionalStatisticNTest(int x, int y, int z, int radius, double sourceN
 	delete [] points;
 }
 
+DirectProblemData DirectEikonal::antiGradientStep(double x0, double y0, double z0,
+		double vx, double vy, double vz,
+		double x1, double y1, double z1,
+		double localDistance) {
+	DirectProblemData localX = traceTrajectory(x0, y0, z0, vx + DX, vy, vz);
+	double localDistanceX = sqrt(
+			(x1 - localX.x1) * (x1 - localX.x1)
+			+ (y1 - localX.y1) * (y1 - localX.y1)
+			+ (z1 - localX.z1) * (z1 - localX.z1));
+	DirectProblemData localY = traceTrajectory(x0, y0, z0, vx, vy + DX, vz);
+	double localDistanceY = sqrt(
+			(x1 - localY.x1) * (x1 - localY.x1)
+			+ (y1 - localY.y1) * (y1 - localY.y1)
+			+ (z1 - localY.z1) * (z1 - localY.z1));
+	DirectProblemData localZ = traceTrajectory(x0, y0, z0, vx, vy, vz + DX);
+	double localDistanceZ = sqrt(
+			(x1 - localZ.x1) * (x1 - localZ.x1)
+			+ (y1 - localZ.y1) * (y1 - localZ.y1)
+			+ (z1 - localZ.z1) * (z1 - localZ.z1));
+	double gradX = (localDistanceX - localDistance) / DX;
+	double gradY = (localDistanceY - localDistance) / DX;
+	double gradZ = (localDistanceZ - localDistance) / DX;
+
+	double lGrad = sqrt(gradX * gradX + gradY * gradY + gradZ * gradZ);
+	vx = vx - GRAD_SPEED * gradX / lGrad;
+	vy = vy - GRAD_SPEED * gradY / lGrad;
+	vz = vz - GRAD_SPEED * gradZ / lGrad;
+
+	return traceTrajectory(x0, y0, z0, vx, vy, vz);
+}
+
+void DirectEikonal::calculateDirectProblem(Point *points, int pointsCount, int i, LocalTraceData *localTraces) {
+	Point p1 = points[i];
+
+	for (int j = 0; j < pointsCount; j++) {
+		localTraces[j].localDistance = INFTY;
+		localTraces[j].visitStatus = 0;
+		if (i == j) {
+			localTraces[i].visitStatus = -1;
+			continue;
+		}
+
+		Point p2 = points[j];
+
+		double vx, vy, vz;
+		double length = 0;
+
+		double x0 = p1.x;
+		double y0 = p1.y;
+		double z0 = p1.z;
+
+		double x1 = p2.x;
+		double y1 = p2.y;
+		double z1 = p2.z;
+
+		vx = x1 - x0;
+		vy = y1 - y0;
+		vz = z1 - z0;
+		length = sqrt(vx * vx + vy * vy + vz * vz);
+		vx = vx / length;
+		vy = vy / length;
+		vz = vz / length;
+
+		if (p1.p == p2.p) {
+			localTraces[j].visitStatus = 2;
+			localTraces[j].vx = vx;
+			localTraces[j].vy = vy;
+			localTraces[j].vz = vz;
+			localTraces[j].px = p2.x;
+			localTraces[j].py = p2.y;
+			localTraces[j].pz = p2.z;
+			localTraces[j].j = j;
+			localTraces[j].localDistance = 0;
+			localTraces[j].tau = length;
+
+			continue;
+		}
+
+		DirectProblemData local = traceTrajectory(x0, y0, z0, vx, vy, vz);
+		int point = getPoint(local.x1, local.y1, local.z1);
+		Point p3 = points[point];
+		double localDistance = sqrt(
+				(p3.x - local.x1) * (p3.x - local.x1)
+				+ (p3.y - local.y1) * (p3.y - local.y1)
+				+ (p3.z - local.z1) * (p3.z - local.z1));
+		if (localDistance < localTraces[point].localDistance) {
+			localTraces[point].visitStatus = 1;
+			localTraces[point].vx = vx;
+			localTraces[point].vy = vy;
+			localTraces[point].vz = vz;
+			localTraces[point].px = local.x1;
+			localTraces[point].py = local.y1;
+			localTraces[point].pz = local.z1;
+			localTraces[point].j = point;
+			localTraces[point].localDistance = localDistance;
+			localTraces[point].tau = local.time;
+		}
+	}
+
+	for (int p = 0; p < pointsCount; p++) {
+		if (localTraces[p].visitStatus == 0) {
+			Point localPoint = points[p];
+			// Ищем соседей
+
+			bool found = false;
+#ifdef GRADIENT
+double lVX = 0, lVY = 0, lVZ = 0;
+int lPointNumber = -1;
+double localDistance = INFTY;
+#endif
+#ifdef AVERAGE
+int neibours;
+double tauSum = 0;
+#endif
+
+for (int loockupRadius = 1; ((loockupRadius <= SIZE) && (found == false)); loockupRadius++) {
+	neibours = 0;
+	for (int li = -loockupRadius; li <= loockupRadius; li++) {
+		for (int lj = -loockupRadius; lj <= loockupRadius; lj++) {
+			if ((li == 0) && (lj == 0))
+				continue;
+
+			if (((localPoint.i + li) < 0) || ((localPoint.j + lj) < 0) ||
+					((localPoint.i + li) >= SIZE) || ((localPoint.j + lj) >= SIZE))
+				continue;
+
+			Point neibPoint = points[getPointNumber(localPoint.i + li, localPoint.j + lj, localPoint.p)];
+			int pointNumber = neibPoint.pointNumber;
+
+			if ((localTraces[pointNumber].visitStatus == 1) || (localTraces[pointNumber].visitStatus == 2)) {
+				found = true;
+				neibours++;
+				tauSum += localTraces[pointNumber].tau;
+			}
+
+
+#ifdef GRADIENT
+// TODO
+Point neibPoint = points[getPointNumber(localPoint.i + li, localPoint.j + lj, localPoint.p)];
+int pointNumber = getPointNumber(neibPoint.i, neibPoint.j, neibPoint.p);
+if (localTraces[pointNumber].visitStatus > 0) {
+	found = true;
+	double distance = sqrt(
+			(localPoint.x - localTraces[pointNumber].px) * (localPoint.x - localTraces[pointNumber].px) +
+			(localPoint.y - localTraces[pointNumber].py) * (localPoint.y - localTraces[pointNumber].py) +
+			(localPoint.z - localTraces[pointNumber].pz) * (localPoint.z - localTraces[pointNumber].pz)
+	);
+	if (distance < localDistance) {
+		lVX = localTraces[pointNumber].vx;
+		lVY = localTraces[pointNumber].vy;
+		lVZ = localTraces[pointNumber].vz;
+		lPointNumber = pointNumber;
+		localDistance = distance;
+	}
+
+	if (p == 445) {
+		fprintf(stderr, "Process Point (%f, %f, %f) : (%f, %f, %f). Distance: %f\n",
+				localPoint.x, localPoint.y, localPoint.z,
+				localTraces[pointNumber].px, localTraces[pointNumber].py, localTraces[pointNumber].pz, distance);
+	}
+}
+#endif
+		}
+	}
+}
+
+#ifdef AVERAGE
+localTraces[p].visitStatus = 3;
+localTraces[p].tau = tauSum / neibours;
+#endif
+
+#ifdef GRADIENT
+// TODO
+if (p == 445) {
+	fprintf(stderr, "Min: (%f, %f, %f) -> %d -> (%f)\n", lVX, lVY, lVZ, lPointNumber, localDistance);
+	fprintf(stderr, "point: (%f, %f, %f)\n", localTraces[lPointNumber].px, localTraces[lPointNumber].py, localTraces[lPointNumber].pz);
+
+	DirectProblemData data = directProblemSrc.antiGradientStep(p1.x, p1.y, p1.z,
+			lVX, lVY, lVZ,
+			localPoint.x, localPoint.y, localPoint.z, localDistance);
+	fprintf(stderr, "antiStep: (%f, %f, %f) -> (%f, %f, %f)\n",
+			data.x0, data.y0, data.z0, data.x1, data.y1, data.z1);
+}
+#endif
+		}
+	}
+
+}
+
+void runTest1(int x, int y, int z, int radius, double sourceN) {
+	int pointsCount = 6 * SIZE * SIZE;
+	double scale = 1.0 / (DELTA * SIZE);
+	Point *points = new Point[pointsCount];
+	fillPoints(points);
+
+	DirectEikonal directProblemSrc;
+	directProblemSrc.setupSphere(x, y, z, radius, sourceN);
+	LocalTraceData *localTraces = new LocalTraceData[pointsCount];
+
+	int inverseProblemsCount = 101;
+	DirectEikonal *directProblemTest = new DirectEikonal[inverseProblemsCount];
+	double *inverseParams = new double[inverseProblemsCount];
+	double *inverseErrors = new double[inverseProblemsCount];
+	LocalTraceData *testTraces = new LocalTraceData[pointsCount];
+
+	for (int i = 0; i < inverseProblemsCount; i++) {
+		directProblemTest[i].setupSphere(x, y, z, radius, 1.0 + 0.005 * i);
+		inverseParams[i] = 1.0 + 0.005 * i;
+		inverseErrors[i] = 0;
+	}
+
+	for (int i = 0; i < pointsCount; i++) {
+		memset(localTraces, 0, pointsCount * sizeof(LocalTraceData));
+		directProblemSrc.calculateDirectProblem(points, pointsCount, i, localTraces);
+
+		for (int j = 0; j < inverseProblemsCount; j++) {
+			memset(testTraces, 0, pointsCount * sizeof(LocalTraceData));
+			directProblemTest[j].calculateDirectProblem(points, pointsCount, i, testTraces);
+
+			for (int localI = 0; localI < pointsCount; localI++) {
+				if (localI == i)
+					continue;
+
+				double error = (localTraces[localI].tau - testTraces[localI].tau) * scale;
+				inverseErrors[j] += error * error;
+			}
+		}
+	}
+
+	for (int i = 0; i < inverseProblemsCount; i++) {
+		fprintf(stderr, "%f %f\n", inverseParams[i], inverseErrors[i]);
+	}
+
+	delete [] localTraces;
+	delete [] testTraces;
+	delete [] inverseParams;
+	delete [] inverseErrors;
+	delete [] directProblemTest;
+}
+
 int main(int argc, char** argv) {
 	fprintf(stderr, "Running eikonal solutioner...\n");
 
+	fprintf(stderr, "runTest\n");
+	runTest1(10, 10, 10, 9, 1.1);
+
+/*
     // SIZE = 21
 	fprintf(stderr, "runFunctionalStatisticN\n");
 	runFunctionalStatisticN(10, 10, 10, 9, 1.1, 1.0, 1.5, 0.01);
 	runFunctionalStatisticN(10, 10, 10, 9, 1.2, 1.0, 1.5, 0.01);
 	runFunctionalStatisticN(10, 10, 10, 9, 1.3, 1.0, 1.5, 0.01);
 	runFunctionalStatisticN(10, 10, 10, 9, 1.4, 1.0, 1.5, 0.01);
+*/
 
 /*
     // SIZE = 31
